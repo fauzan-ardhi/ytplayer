@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#030304">
+<link rel="icon" href="data:,">
+<title>YouTube Music Player — HEATWAVE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#020204; --bg2:#05070c; --panel:#070a12; --panel2:#0b101c; --line:#1a2438; --line2:#28354f;
+    --txt:#f4f7ff; --muted:#9aa7c4; --dim:#5f6d8c;
+    --green:#4db8ff; --cyan:#00c8ff; --yellow:#bfe9ff; --orange:#2f7bff; --red:#ffffff; --pink:#8fd0ff;
+    --heat:linear-gradient(90deg,#010614,#06338f 24%,#0066ff 46%,#00a3ff 66%,#7dd8ff 84%,#ffffff);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:"Chakra Petch",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .mono{font-family:"JetBrains Mono",monospace}
+  button{font-family:inherit;cursor:pointer}
+  button,[role="button"],input,select{min-height:40px}
+  ::selection{background:var(--orange);color:#000}
+
+  /* ambient heat glow, very subtle, fixed */
+  .glow{position:fixed;inset:0;pointer-events:none;z-index:0;background:
+    radial-gradient(600px 300px at 85% -5%, rgba(0,102,255,.16), transparent 60%),
+    radial-gradient(700px 340px at -10% 22%, rgba(0,60,180,.12), transparent 60%),
+    radial-gradient(600px 400px at 110% 78%, rgba(125,216,255,.08), transparent 60%);}
+  .gridlines{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.35;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(to bottom,black,transparent 70%)}
+
+  .wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:0 16px 132px}
+
+  /* top strip */
+  .strip{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 2px 0;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+  .strip .live{display:inline-flex;align-items:center;gap:7px;color:var(--green)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  header{padding:18px 0 6px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  h1{margin:0;font-size:clamp(30px,6vw,52px);line-height:.95;font-weight:700;letter-spacing:-.01em;text-transform:uppercase}
+  h1 .grad{background:linear-gradient(90deg,#2f7bff,#00a3ff 45%,#7dd8ff 75%,#ffffff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tagline{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:46ch}
+  .engine{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--dim);border:1px solid var(--line);padding:8px 10px;border-radius:8px;background:var(--panel);white-space:nowrap}
+  .engine b{color:var(--yellow);font-weight:700}
+
+  /* search */
+  .searchbar{margin-top:18px;display:flex;gap:8px;background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:6px}
+  .searchbar:focus-within{border-color:var(--orange)}
+  .searchbar input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--txt);font-family:"JetBrains Mono",monospace;font-size:14px;padding:0 10px;height:44px}
+  .searchbar input::placeholder{color:var(--dim)}
+  .btn-play-search{border:0;border-radius:8px;background:var(--heat);color:#02060f;font-weight:700;padding:0 18px;font-size:14px;letter-spacing:.02em}
+  .hint{margin:8px 2px 0;font-size:12px;color:var(--dim);font-family:"JetBrains Mono",monospace}
+  .hint b{color:var(--muted);font-weight:500}
+
+  /* background mode banner */
+  .bgmode{margin-top:18px;display:flex;gap:14px;align-items:center;justify-content:space-between;background:linear-gradient(120deg,rgba(0,60,180,.14),rgba(0,102,255,.08) 45%,rgba(125,216,255,.07));border:1px solid var(--line2);border-radius:var(--radius);padding:14px 16px}
+  .bgmode h2{margin:0;font-size:16px;text-transform:uppercase;letter-spacing:.03em}
+  .bgmode p{margin:4px 0 0;color:var(--muted);font-size:13px;line-height:1.5;max-width:56ch}
+  .switch{position:relative;flex:none;width:62px;height:36px;border-radius:999px;background:#1c1c24;border:1px solid var(--line2);padding:0;min-height:36px}
+  .switch::after{content:"";position:absolute;top:4px;left:4px;width:26px;height:26px;border-radius:50%;background:#55555f;transition:.22s}
+  .switch[aria-checked="true"]{background:rgba(0,102,255,.22);border-color:var(--green)}
+  .switch[aria-checked="true"]::after{left:30px;background:var(--green);box-shadow:0 0 12px rgba(77,184,255,.7)}
+  .bg-status{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--green);margin-top:6px;display:none}
+  .bg-status.on{display:block}
+
+  /* layout */
+  .layout{display:grid;grid-template-columns:1fr;gap:22px;margin-top:22px}
+  @media(min-width:900px){.layout{grid-template-columns:1.05fr .95fr;align-items:start}}
+
+  .secttl{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 12px}
+  .secttl h2{margin:0;font-size:15px;text-transform:uppercase;letter-spacing:.12em}
+  .secttl span{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--dim)}
+
+  /* now playing */
+  .np{background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+  .video-shell{position:relative;aspect-ratio:16/9;background:#000}
+  .video-shell iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .video-shell::after{content:"";position:absolute;inset:0;pointer-events:none;border-bottom:3px solid transparent;border-image:var(--heat) 1}
+  .player-msg{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(0,0,0,.88);padding:20px;text-align:center}
+  .player-msg[hidden]{display:none}
+  .player-msg p{margin:0;font-size:14px;line-height:1.55;color:var(--txt);max-width:44ch}
+  .player-msg .pm-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .player-msg .abtn{flex:none;min-width:0}
+  body.bg-on .player-msg{display:none}
+  body.bg-on .video-shell{position:fixed;width:172px;height:97px;aspect-ratio:auto;right:12px;bottom:118px;z-index:70;border:1px solid var(--orange);border-radius:10px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.8)}
+  body.bg-on .np .video-shell{position:fixed}
+  .np-body{padding:16px}
+  .np-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .np-title{font-size:20px;font-weight:700;line-height:1.2;margin:0}
+  .np-artist{color:var(--muted);margin:4px 0 0;font-size:14px}
+  .heatbadge{flex:none;font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:700;padding:7px 10px;border-radius:8px;background:#050b1a;color:var(--red);border:1px solid rgba(125,216,255,.45)}
+  .eq{display:flex;gap:3px;align-items:flex-end;height:26px;margin-top:14px}
+  .eq i{flex:1;background:var(--heat);background-size:800px 100%;border-radius:2px 2px 0 0;height:22%;opacity:.9}
+  .playing .eq i{animation:eq .7s ease-in-out infinite alternate}
+  .eq i:nth-child(3n){animation-duration:.52s}.eq i:nth-child(4n){animation-duration:.9s}.eq i:nth-child(5n){animation-duration:.62s}.eq i:nth-child(7n){animation-duration:1.05s}
+  @keyframes eq{from{height:12%}to{height:96%}}
+  @media(prefers-reduced-motion:reduce){.eq i,.dot{animation:none!important}}
+  .seekrow{display:flex;align-items:center;gap:10px;margin-top:14px;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--muted)}
+  input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;padding:0;min-height:28px;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:99px;background:linear-gradient(90deg,var(--orange) var(--fill,0%),#26262f var(--fill,0%))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#fff;margin-top:-5px;box-shadow:0 0 0 3px rgba(0,140,255,.55)}
+  input[type=range]::-moz-range-track{height:5px;border-radius:99px;background:#26262f}
+  input[type=range]::-moz-range-progress{height:5px;border-radius:99px;background:var(--orange)}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:#fff}
+  #seek{flex:1}
+  .controls{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .cbtn{width:46px;height:46px;border-radius:50%;border:1px solid var(--line2);background:var(--panel2);color:var(--txt);display:grid;place-items:center;font-size:16px}
+  .cbtn:hover{border-color:var(--orange)}
+  .cbtn.main{width:60px;height:60px;font-size:22px;background:var(--heat);color:#02060f;border:0;font-weight:700}
+  .cbtn.active{color:var(--green);border-color:var(--green)}
+  .cbtn svg{width:20px;height:20px;fill:currentColor}
+  .cbtn.main svg{width:26px;height:26px}
+  .volrow{display:flex;align-items:center;gap:10px;margin-top:10px;color:var(--muted);font-size:12px;font-family:"JetBrains Mono",monospace}
+  .volrow input{flex:1}
+  .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .abtn{flex:1;min-width:130px;border:1px solid var(--line2);background:var(--panel2);color:var(--txt);border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+  .abtn:hover{border-color:var(--yellow)}
+  .abtn.liked{color:var(--pink);border-color:var(--pink)}
+
+  /* heatmap */
+  .heatmap{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:86px;gap:6px}
+  .tile{position:relative;border:0;border-radius:10px;overflow:hidden;text-align:left;padding:10px;color:#fff;min-height:86px;display:flex;flex-direction:column;justify-content:flex-end;isolation:isolate}
+  .tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;filter:saturate(1.1)}
+  .tile::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(to top,rgba(0,0,0,.88) 30%,rgba(0,0,0,.15)),var(--tint);mix-blend-mode:normal;opacity:.94}
+  .tile .t-heat{position:absolute;top:8px;right:8px;font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:700;background:rgba(0,0,0,.65);padding:4px 7px;border-radius:6px}
+  .tile .t-name{font-weight:700;font-size:13px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .tile .t-art{font-size:11px;color:#d8d8de;font-family:"JetBrains Mono",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .t-chg{font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:700}
+  .tile.big{grid-column:span 2;grid-row:span 2}
+  .tile.wide{grid-column:span 2}
+  .up{color:var(--cyan)} .down{color:#7d8db0}
+  .tile.now{outline:2px solid #fff;outline-offset:-2px}
+  .layout>section{min-width:0}
+  .tile{min-width:0}
+  @media(max-width:640px){
+    .heatmap{grid-template-columns:repeat(2,1fr);grid-auto-rows:92px}
+    .tile.big{grid-column:span 2;grid-row:span 2}
+    .tile.wide{grid-column:span 2}
+    .tile .t-name{font-size:14px}
+  }
+
+  /* chips + list */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 12px}
+  .chip{border:1px solid var(--line2);background:var(--panel);color:var(--muted);border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600;min-height:38px}
+  .chip.on{background:var(--txt);color:#000;border-color:var(--txt)}
+  .list{display:flex;flex-direction:column;gap:6px}
+  .row{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;text-align:left;width:100%;color:var(--txt)}
+  .row:hover{border-color:var(--line2);background:var(--panel2)}
+  .row.now{border-color:var(--orange)}
+  .row img{width:56px;height:42px;object-fit:cover;border-radius:8px;flex:none;background:#000}
+  .row .r-main{flex:1;min-width:0}
+  .row .r-title{display:block;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .r-sub{display:block;color:var(--muted);font-size:12px;font-family:"JetBrains Mono",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .row .r-heat{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:700;flex:none;text-align:right}
+  .row .r-heat small{display:block;color:var(--dim);font-weight:400;font-size:10px}
+  .row .r-play{flex:none;width:38px;height:38px;border-radius:50%;background:#1b1b22;display:grid;place-items:center;font-size:13px;color:#fff}
+  .row.now .r-play{background:var(--heat);color:#02060f}
+  .empty{padding:26px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line2);border-radius:12px;font-size:14px;line-height:1.6}
+  .queuebox{margin-top:20px}
+  .qitem{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;font-size:13px;margin-bottom:6px}
+  .qitem button{background:none;border:0;color:var(--dim);min-height:36px;padding:0 6px;font-size:15px}
+  .note{margin-top:22px;color:var(--dim);font-size:12.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:16px}
+  .note b{color:var(--muted)}
+
+  /* bottom player */
+  .dock{position:fixed;left:0;right:0;bottom:0;z-index:80;background:rgba(5,5,7,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line2)}
+  .dock::before{content:"";position:absolute;top:-1px;left:0;right:0;height:2px;background:var(--heat)}
+  .dock-in{max-width:1080px;margin:0 auto;padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:12px}
+  .dock img{width:48px;height:48px;border-radius:8px;object-fit:cover;flex:none}
+  .dock .d-main{flex:1;min-width:0}
+  .dock .d-title{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dock .d-sub{color:var(--muted);font-size:11.5px;font-family:"JetBrains Mono",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dock .cbtn{width:42px;height:42px;flex:none}
+  .dock .cbtn.main{width:50px;height:50px}
+  .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:104px;z-index:90;background:#15151b;border:1px solid var(--line2);color:var(--txt);padding:11px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;max-width:92vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  a{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="glow"></div><div class="gridlines"></div>
+<div class="wrap">
+
+  <div class="strip">
+    <span class="live"><span class="dot"></span> Player Aktif</span>
+    <span>Engine: YouTube</span>
+    <span id="clock">--:--</span>
+  </div>
+
+  <header>
+    <div>
+      <h1>Heat<span class="grad">wave</span><br>Player</h1>
+      <p class="tagline">Dengerin lagu dari database YouTube dengan tampilan heatmap ala pasar crypto — yang lagi panas, paling gede kotaknya.</p>
+    </div>
+    <div class="engine">MODE <b>ANDROID WEB APP</b><br>INSTALL VIA BROWSER → “TAMBAHKAN KE LAYAR UTAMA”</div>
+  </header>
+
+  <form class="searchbar" id="searchForm">
+    <input id="searchInput" type="text" inputmode="search" placeholder="Cari lagu / artis… atau paste link YouTube di sini" aria-label="Cari lagu atau paste link YouTube">
+    <button class="btn-play-search" type="submit">PUTAR ▸</button>
+  </form>
+  <p class="hint">Contoh link: <b>youtube.com/watch?v=…</b> atau <b>youtu.be/…</b> — langsung diputar, lagu apa pun dari YouTube bisa masuk.</p>
+
+  <section class="bgmode" aria-label="Mode latar belakang">
+    <div>
+      <h2>🔥 Mode Latar Belakang</h2>
+      <p>Aktifkan ini sebelum pindah aplikasi — video diciutkan jadi jendela mini yang tetap jalan, jadi audio jauh lebih awet dibanding mode biasa, dan kontrol putar/jeda tetap muncul di notifikasi / lock screen (Media Session). Catatan jujur: browser HP masih bisa nge-pause paksa pas layar dikunci total — itu batasan YouTube di browser, bukan tombol ajaib.</p>
+      <div class="bg-status" id="bgStatus">● MODE LATAR AKTIF — audio tetap jalan di jendela mini</div>
+    </div>
+    <button class="switch" id="bgSwitch" role="switch" aria-checked="false" aria-label="Aktifkan mode latar belakang"></button>
+  </section>
+
+  <div class="layout">
+    <!-- LEFT: now playing -->
+    <section aria-label="Sedang diputar">
+      <div class="secttl"><h2>▶ Now Playing</h2><span id="npMeta">YT / EMBED PLAYER</span></div>
+      <div class="np" id="npCard">
+        <div class="video-shell"><div id="ytplayer"></div>
+          <div class="player-msg" id="playerMsg" hidden>
+            <p id="playerMsgText">Memuat player YouTube…</p>
+            <div class="pm-actions">
+              <button class="abtn" id="btnRetryPlayer" type="button">↻ &nbsp;Coba lagi</button>
+              <a class="abtn" id="btnMsgYT" href="https://www.youtube.com" target="_blank" rel="noopener">↗ &nbsp;Buka di YouTube</a>
+            </div>
+          </div>
+        </div>
+        <div class="np-body">
+          <div class="np-top">
+            <div><p class="np-title" id="npTitle">—</p><p class="np-artist" id="npArtist">Pilih lagu dari heatmap atau daftar di bawah</p></div>
+            <div class="heatbadge" id="npHeat">--°</div>
+          </div>
+          <div class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="seekrow"><span id="tCur">0:00</span><input type="range" id="seek" min="0" max="100" value="0" step="0.1" aria-label="Geser posisi lagu"><span id="tDur">0:00</span></div>
+          <div class="controls">
+            <button class="cbtn" id="btnShuffle" aria-label="Acak" title="Acak"><svg viewBox="0 0 24 24"><path d="M10.6 5.6 12 4l4 4-4 4-1.4-1.4L12.2 9H9c-2 0-3.2 2.6-4.4 4.4C3.6 14.9 2.7 16 1 16v-2c1 0 1.4-.6 2.3-2C4.5 10.1 6 7 9 7h3.2l-1.6-1.4ZM20 8V4l4 4-4 4V9h-1c-1 0-1.5.6-2.3 1.9L15.2 13c.3-.5.7-1 1-1.5L17.7 9H20V8ZM10.6 18.4 12 20l4-4-4-4-1.4 1.4 1.6 1.6H9c-1.2 0-2.1.8-2.9 1.9l1.3 1.6C8 17.4 8.5 17 9 17h3.2l-1.6 1.4ZM20 15c1 0 1.4.6 2.3 2 .3.4.6.8.9 1.1L21.9 20c-.8-.9-1.4-1.9-2-2.8C19 15.7 18 14 16.5 14h-.8l1.5-2h.3c1.6 1 2.7 3 5.5 3v2Z" transform="scale(.92)"/></svg></button>
+            <button class="cbtn" id="btnPrev" aria-label="Lagu sebelumnya"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
+            <button class="cbtn main" id="btnPlay" aria-label="Putar atau jeda"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4l13 8-13 8z"/></svg></button>
+            <button class="cbtn" id="btnNext" aria-label="Lagu berikutnya"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg></button>
+            <button class="cbtn" id="btnRepeat" aria-label="Ulangi" title="Ulangi"><svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
+          </div>
+          <div class="volrow"><span>VOL</span><input type="range" id="vol" min="0" max="100" value="80" aria-label="Volume"><span id="volVal">80</span></div>
+          <div class="actions">
+            <button class="abtn" id="btnLike">♡ &nbsp;Suka lagu ini</button>
+            <button class="abtn" id="btnQueue">＋ &nbsp;Antrekan berikutnya</button>
+            <a class="abtn" id="btnOpenYT" href="https://www.youtube.com" target="_blank" rel="noopener">↗ &nbsp;Buka di YouTube</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="queuebox">
+        <div class="secttl"><h2>Antrean</h2><span id="qCount">0 LAGU</span></div>
+        <div id="queueList"><div class="empty">Antrean kosong. Tekan “＋ Antrekan” di lagu mana pun, atau klik lagu lain — lagu berikutnya jalan otomatis pas lagu ini habis.</div></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: heatmap + list -->
+    <section aria-label="Heatmap dan daftar lagu">
+      <div class="secttl"><h2>🌡 Heatmap Trending</h2><span>SUHU = SKOR TAMPILAN, BUKAN DATA LIVE</span></div>
+      <div class="heatmap" id="heatmap"></div>
+
+      <div class="chips" id="chips"></div>
+      <div class="secttl"><h2>Semua Lagu</h2><span id="listCount"></span></div>
+      <div class="list" id="trackList"></div>
+
+      <p class="note"><b>Cara install kayak aplikasi Android:</b> buka halaman ini di Chrome Android → menu ⋮ → “Tambahkan ke Layar Utama”. Ikonnya muncul di home screen dan kebuka full-screen kayak aplikasi beneran.<br><br>
+      <b>Soal background play:</b> di browser HP, YouTube kadang nge-pause video pas layar dikunci — itu batasan browser, bukan aplikasinya. Mode Latar di atas + jendela mini yang tetap tampil adalah cara paling awet biar audio tetap jalan. Semua lagu di sini diputar langsung dari server YouTube lewat player resminya.</p>
+    </section>
+  </div>
+</div>
+
+<!-- bottom dock -->
+<div class="dock">
+  <div class="dock-in">
+    <img id="dockThumb" src="data:image/jpeg;base64,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" alt="">
+    <div class="d-main"><div class="d-title" id="dockTitle">Belum ada lagu</div><div class="d-sub" id="dockSub">PILIH LAGU BUAT MULAI</div></div>
+    <button class="cbtn" id="dockPrev" aria-label="Sebelumnya"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
+    <button class="cbtn main" id="dockPlay" aria-label="Putar atau jeda"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" id="dockPlayIcon"/></svg></button>
+    <button class="cbtn" id="dockNext" aria-label="Berikutnya"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg></button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var TRACKS=[
+ {id:"60ItHLz5WEA",title:"Faded",artist:"Alan Walker",genre:"Electronic",heat:98,chg:"+18.4%"},
+ {id:"5qap5aO4i9A",title:"lofi hip hop radio — beats to relax/study to",artist:"Lofi Girl",genre:"Lo-fi",heat:97,chg:"+9.1%"},
+ {id:"4NRXx6U8ABQ",title:"Blinding Lights",artist:"The Weeknd",genre:"Pop",heat:96,chg:"+12.7%"},
+ {id:"kJQP7kiw5Fk",title:"Despacito",artist:"Luis Fonsi ft. Daddy Yankee",genre:"Latin",heat:94,chg:"+6.3%"},
+ {id:"JGwWNGJdvx8",title:"Shape of You",artist:"Ed Sheeran",genre:"Pop",heat:91,chg:"+4.8%"},
+ {id:"OPf0YbXqDm0",title:"Uptown Funk",artist:"Mark Ronson ft. Bruno Mars",genre:"Pop",heat:90,chg:"+5.5%"},
+ {id:"mRD0-GxqHVo",title:"Heat Waves",artist:"Glass Animals",genre:"Pop",heat:89,chg:"+11.2%"},
+ {id:"H5v3kku4y6Q",title:"As It Was",artist:"Harry Styles",genre:"Pop",heat:88,chg:"+7.9%"},
+ {id:"kTJczUoc26U",title:"STAY",artist:"The Kid LAROI & Justin Bieber",genre:"Pop",heat:87,chg:"+3.4%"},
+ {id:"uelHwf8o7_U",title:"Love The Way You Lie",artist:"Eminem ft. Rihanna",genre:"Hip-Hop",heat:86,chg:"+2.8%"},
+ {id:"fJ9rUzIMcZQ",title:"Bohemian Rhapsody",artist:"Queen",genre:"Rock",heat:85,chg:"+1.9%"},
+ {id:"pRpeEdMmmQ0",title:"Waka Waka (This Time for Africa)",artist:"Shakira",genre:"Latin",heat:84,chg:"+8.6%"},
+ {id:"hTWKbfoikeg",title:"Smells Like Teen Spirit",artist:"Nirvana",genre:"Rock",heat:83,chg:"-1.2%"},
+ {id:"09R8_2nJtjg",title:"Sugar",artist:"Maroon 5",genre:"Pop",heat:82,chg:"+2.1%"},
+ {id:"2vjPBrBU-TM",title:"Chandelier",artist:"Sia",genre:"Pop",heat:81,chg:"-0.6%"},
+ {id:"e-ORhEE9VVg",title:"Blank Space",artist:"Taylor Swift",genre:"Pop",heat:80,chg:"+4.2%"},
+ {id:"YQHsXMglC9A",title:"Hello",artist:"Adele",genre:"Pop",heat:78,chg:"+1.4%"},
+ {id:"k0BWlvnBmIE",title:"Counting Stars",artist:"OneRepublic",genre:"Pop",heat:77,chg:"+3.0%"}
+];
+var GENRES=["Semua","Pop","Electronic","Hip-Hop","Rock","Latin","Lo-fi"];
+var state={idx:0,playing:false,shuffle:false,repeat:false,filter:"Semua",query:"",queue:[],liked:{},ready:false,seeking:false,mode:"api",pending:-1};
+var player=null;
+var embedFrame=null;
+
+function heatColor(h){
+  if(h>=94) return "rgba(215,242,255,.55)";
+  if(h>=89) return "rgba(0,170,255,.50)";
+  if(h>=84) return "rgba(0,110,255,.46)";
+  if(h>=80) return "rgba(0,70,205,.40)";
+  return "rgba(0,38,120,.36)";
+}
+function heatText(h){ return h>=89?"var(--red)":(h>=84?"var(--orange)":"var(--green)"); }
+function fmt(s){ s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+function toast(msg){ var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove("show")},2600); }
+function cur(){ return TRACKS[state.idx]; }
+
+/* ---------- render heatmap ---------- */
+function renderHeat(){
+  var top=TRACKS.slice().sort(function(a,b){return b.heat-a.heat}).slice(0,8);
+  var el=document.getElementById("heatmap"); el.innerHTML="";
+  top.forEach(function(t,i){
+    var idx=TRACKS.indexOf(t);
+    var b=document.createElement("button");
+    b.className="tile"+(i===0?" big":(i===1||i===4?" wide":""))+(idx===state.idx?" now":"");
+    b.style.setProperty("--tint","linear-gradient(160deg, transparent 40%,"+heatColor(t.heat)+")");
+    b.setAttribute("aria-label","Putar "+t.title+" oleh "+t.artist);
+    b.innerHTML='<img src="assets/'+t.id+'.jpg" onerror="this.onerror=null;this.src=\'https://i.ytimg.com/vi/'+t.id+'/hqdefault.jpg\'" alt="" loading="lazy"><span class="t-heat" style="color:'+heatText(t.heat)+'">'+t.heat+'°</span><span class="t-chg '+(t.chg.indexOf("-")===0?"down":"up")+'">'+(t.chg.indexOf("-")===0?"▼ ":"▲ ")+t.chg+'</span><span class="t-name">'+t.title+'</span><span class="t-art">'+t.artist+'</span>';
+    b.addEventListener("click",function(){ playTrack(idx,true); });
+    el.appendChild(b);
+  });
+}
+/* ---------- render chips + list ---------- */
+function renderChips(){
+  var el=document.getElementById("chips"); el.innerHTML="";
+  GENRES.forEach(function(g){
+    var b=document.createElement("button"); b.className="chip"+(state.filter===g?" on":""); b.textContent=g;
+    b.addEventListener("click",function(){ state.filter=g; renderChips(); renderList(); });
+    el.appendChild(b);
+  });
+}
+function visibleTracks(){
+  return TRACKS.map(function(t,i){return {t:t,i:i}}).filter(function(x){
+    var okG=state.filter==="Semua"||x.t.genre===state.filter;
+    var q=state.query.trim().toLowerCase();
+    var okQ=!q||(x.t.title+" "+x.t.artist+" "+x.t.genre).toLowerCase().indexOf(q)>-1;
+    return okG&&okQ;
+  });
+}
+function renderList(){
+  var vis=visibleTracks(), el=document.getElementById("trackList"); el.innerHTML="";
+  document.getElementById("listCount").textContent=vis.length+" LAGU";
+  if(!vis.length){ el.innerHTML='<div class="empty">Nggak ketemu. Coba kata kunci lain — atau paste link YouTube-nya langsung di kolom pencarian di atas, lagu apa pun bisa diputar.</div>'; return; }
+  vis.forEach(function(x){
+    var t=x.t;
+    var b=document.createElement("button");
+    b.className="row"+(x.i===state.idx?" now":"");
+    b.innerHTML='<img src="assets/'+t.id+'.jpg" onerror="this.onerror=null;this.src=\'https://i.ytimg.com/vi/'+t.id+'/hqdefault.jpg\'" alt="" loading="lazy"><span class="r-main"><span class="r-title">'+t.title+'</span><span class="r-sub">'+t.artist+' • '+t.genre+'</span></span><span class="r-heat" style="color:'+heatText(t.heat)+'">'+t.heat+'°<small>'+t.chg+'</small></span><span class="r-play">'+(x.i===state.idx&&state.playing?"❚❚":"▶")+'</span>';
+    b.addEventListener("click",function(){ if(x.i===state.idx){ togglePlay(); } else { playTrack(x.i,true); } });
+    el.appendChild(b);
+  });
+}
+function renderQueue(){
+  var el=document.getElementById("queueList");
+  document.getElementById("qCount").textContent=state.queue.length+" LAGU";
+  if(!state.queue.length){ el.innerHTML='<div class="empty">Antrean kosong. Tekan “＋ Antrekan” di lagu mana pun, atau klik lagu lain — lagu berikutnya jalan otomatis pas lagu ini habis.</div>'; return; }
+  el.innerHTML="";
+  state.queue.forEach(function(qi,pos){
+    var t=TRACKS[qi];
+    var d=document.createElement("div"); d.className="qitem";
+    d.innerHTML='<span><span class="mono" style="color:var(--dim)">'+String(pos+1).padStart(2,"0")+'</span> &nbsp;'+t.title+' — <span style="color:var(--muted)">'+t.artist+'</span></span>';
+    var x=document.createElement("button"); x.textContent="✕"; x.setAttribute("aria-label","Hapus dari antrean");
+    x.addEventListener("click",function(){ state.queue.splice(pos,1); renderQueue(); });
+    d.appendChild(x); el.appendChild(d);
+  });
+}
+
+/* ---------- player status / fallback ---------- */
+function showPlayerMsg(msg,showRetry){
+  var m=document.getElementById("playerMsg"); if(!m) return;
+  document.getElementById("playerMsgText").textContent=msg;
+  document.getElementById("btnRetryPlayer").style.display=showRetry?"":"none";
+  document.getElementById("btnMsgYT").href="https://www.youtube.com/watch?v="+cur().id;
+  m.hidden=false;
+}
+function hidePlayerMsg(){ var m=document.getElementById("playerMsg"); if(m) m.hidden=true; }
+function embedSrc(t,autoplay){
+  return "https://www.youtube-nocookie.com/embed/"+t.id+"?autoplay="+(autoplay?1:0)+"&playsinline=1&rel=0&modestbranding=1&controls=1&enablejsapi=1";
+}
+function loadEmbed(t,autoplay){
+  if(!embedFrame) return;
+  state.playing=!!autoplay;
+  embedFrame.src=embedSrc(t,autoplay);
+}
+function embedCmd(func){
+  if(embedFrame&&embedFrame.contentWindow){
+    try{ embedFrame.contentWindow.postMessage(JSON.stringify({event:"command",func:func,args:""}),"*"); }catch(e){}
+  }
+}
+function enterEmbedMode(reason){
+  if(state.mode==="embed"){ loadEmbed(cur(),state.playing); return; }
+  state.mode="embed"; state.ready=false;
+  document.getElementById("npMeta").textContent="MODE EMBED CADANGAN";
+  if(player){ try{ player.destroy(); }catch(e){} player=null; }
+  var holder=document.getElementById("ytplayer"); if(holder&&holder.parentNode) holder.parentNode.removeChild(holder);
+  var shell=document.querySelector(".video-shell");
+  embedFrame=document.createElement("iframe");
+  embedFrame.id="embedFrame";
+  embedFrame.title="Player YouTube (mode embed cadangan)";
+  embedFrame.setAttribute("allow","autoplay; encrypted-media; picture-in-picture; fullscreen");
+  embedFrame.setAttribute("allowfullscreen","");
+  embedFrame.setAttribute("referrerpolicy","strict-origin-when-cross-origin");
+  embedFrame.addEventListener("load",function(){
+    if(embedFrame&&embedFrame.contentWindow){
+      try{ embedFrame.contentWindow.postMessage(JSON.stringify({event:"listening",id:"heatwave",channel:"widget"}),"*"); }catch(e){}
+    }
+  });
+  shell.insertBefore(embedFrame,shell.firstChild);
+  loadEmbed(cur(),state.playing);
+  hidePlayerMsg();
+  toast("Player utama nggak jalan — pindah ke mode embed cadangan. "+reason);
+}
+window.addEventListener("message",function(e){
+  if(state.mode!=="embed") return;
+  if(!e.origin||e.origin.indexOf("youtube")<0) return;
+  try{
+    var d=(typeof e.data==="string")?JSON.parse(e.data):e.data;
+    if(d&&d.event==="infoDelivery"&&d.info&&typeof d.info.playerState==="number"){
+      var ps=d.info.playerState;
+      if(ps===1&&!state.playing){ state.playing=true; updateNP(); }
+      if(ps===2&&state.playing){ state.playing=false; updateNP(); }
+      if(ps===0){ state.playing=false; updateNP(); nextTrack(true); }
+    }
+  }catch(err){}
+});
+
+/* ---------- player ---------- */
+function updateNP(){
+  var t=cur(); if(!t) return;
+  document.getElementById("npTitle").textContent=t.title;
+  document.getElementById("npArtist").textContent=t.artist+" • "+t.genre+" • via YouTube";
+  document.getElementById("npHeat").textContent=t.heat+"° "+t.chg;
+  document.getElementById("npHeat").style.color=heatText(t.heat);
+  document.getElementById("dockTitle").textContent=t.title;
+  document.getElementById("dockSub").textContent=t.artist.toUpperCase()+" • "+t.heat+"°";
+  var dt=document.getElementById("dockThumb"); dt.onerror=function(){ dt.onerror=null; dt.src="https://i.ytimg.com/vi/"+t.id+"/hqdefault.jpg"; }; dt.src="assets/"+t.id+".jpg";
+  document.getElementById("btnOpenYT").href="https://www.youtube.com/watch?v="+t.id;
+  var mYT=document.getElementById("btnMsgYT"); if(mYT) mYT.href="https://www.youtube.com/watch?v="+t.id;
+  document.getElementById("btnLike").classList.toggle("liked",!!state.liked[t.id]);
+  document.getElementById("btnLike").innerHTML=state.liked[t.id]?"♥ &nbsp;Disukai":"♡ &nbsp;Suka lagu ini";
+  document.getElementById("npCard").classList.toggle("playing",state.playing);
+  var pi=document.getElementById("playIcon"), di=document.getElementById("dockPlayIcon");
+  var d=state.playing?"M6 4h4v16H6zM14 4h4v16h-4z":"M7 4l13 8-13 8z";
+  pi.innerHTML=""; var p=document.createElementNS("http://www.w3.org/2000/svg","path"); p.setAttribute("d",d); pi.appendChild(p);
+  di.setAttribute("d",d);
+  if("mediaSession" in navigator){
+    try{
+      navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:"HEATWAVE Player — YouTube",artwork:[{src:"assets/"+t.id+".jpg",sizes:"480x360",type:"image/jpeg"}]});
+      navigator.mediaSession.playbackState=state.playing?"playing":"paused";
+    }catch(e){}
+  }
+  renderHeat(); renderList();
+}
+function playTrack(idx,autoplay){
+  state.idx=idx; var t=cur();
+  if(state.mode==="embed"){ loadEmbed(t,autoplay); }
+  else if(player&&state.ready){ player.loadVideoById(t.id); if(!autoplay) player.pauseVideo(); }
+  else{
+    state.pending=idx;
+    showPlayerMsg("Player YouTube masih dimuat — lagu kamu langsung jalan begitu player-nya siap. Kalau kelamaan, cek koneksi lalu tekan Coba Lagi.",true);
+  }
+  state.playing=!!autoplay; updateNP();
+  document.getElementById("npCard").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function togglePlay(){
+  if(state.mode==="embed"){
+    if(state.playing){ embedCmd("pauseVideo"); state.playing=false; }
+    else{ embedCmd("playVideo"); state.playing=true; }
+    updateNP(); return;
+  }
+  if(!player||!state.ready){ state.pending=state.idx; playTrack(state.idx,true); return; }
+  if(state.playing){ player.pauseVideo(); } else { player.playVideo(); }
+}
+function nextTrack(auto){
+  if(auto&&state.repeat){
+    if(state.mode==="embed"){ loadEmbed(cur(),true); updateNP(); return; }
+    if(player&&state.ready){ player.seekTo(0); player.playVideo(); return; }
+  }
+  if(state.queue.length){ playTrack(state.queue.shift(),true); renderQueue(); return; }
+  var n=state.shuffle?Math.floor(Math.random()*TRACKS.length):(state.idx+1)%TRACKS.length;
+  if(n===state.idx) n=(n+1)%TRACKS.length;
+  playTrack(n,true);
+}
+function prevTrack(){
+  if(state.mode!=="embed"&&player&&state.ready&&player.getCurrentTime&&player.getCurrentTime()>4){ player.seekTo(0); return; }
+  playTrack((state.idx-1+TRACKS.length)%TRACKS.length,true);
+}
+/* Load the IFrame API dynamically with retry — a static <script> tag that
+   fails (blocked youtube.com, adblocker, in-app webview) used to leave every
+   control silently dead. After 2 failed attempts we switch to embed mode. */
+var apiAttempts=0, apiWatchdog=null;
+function apiFailed(){
+  if(state.ready||state.mode==="embed") return;
+  if(apiAttempts<2){ loadYouTubeAPI(); return; }
+  enterEmbedMode("Script player YouTube gagal dimuat 2× — biasanya youtube.com keblokir koneksi/adblock/webview.");
+}
+function loadYouTubeAPI(){
+  if(state.ready||state.mode==="embed") return;
+  apiAttempts++;
+  if(!(window.YT&&YT.Player)) showPlayerMsg("Memuat player YouTube… (percobaan "+apiAttempts+")",false);
+  var tag=document.createElement("script");
+  tag.src="https://www.youtube.com/iframe_api";
+  tag.onerror=function(){ apiFailed(); };
+  document.head.appendChild(tag);
+  clearTimeout(apiWatchdog);
+  apiWatchdog=setTimeout(function(){ if(!state.ready&&state.mode==="api") apiFailed(); },7000);
+}
+function createPlayer(){
+  player=new YT.Player("ytplayer",{
+    videoId:cur().id,
+    playerVars:{playsinline:1,rel:0,modestbranding:1,controls:1},
+    events:{
+      onReady:function(){
+        state.ready=true; clearTimeout(apiWatchdog); hidePlayerMsg();
+        document.getElementById("npMeta").textContent="YT / EMBED PLAYER";
+        try{
+          var f=player.getIframe();
+          f.setAttribute("referrerpolicy","strict-origin-when-cross-origin");
+          f.setAttribute("allow","autoplay; encrypted-media; picture-in-picture; fullscreen");
+        }catch(e){}
+        player.setVolume(80);
+        if(state.pending>-1){ var p=state.pending; state.pending=-1; playTrack(p,true); }
+        else if(state.playing){ player.loadVideoById(cur().id); }
+        updateNP();
+      },
+      onStateChange:function(e){
+        if(e.data===YT.PlayerState.PLAYING){ state.playing=true; hidePlayerMsg(); }
+        if(e.data===YT.PlayerState.PAUSED){ state.playing=false; }
+        if(e.data===YT.PlayerState.ENDED){ state.playing=false; updateNP(); nextTrack(true); return; }
+        updateNP();
+      },
+      onError:function(e){
+        var code=(e&&typeof e.data!=="undefined")?e.data:"?";
+        state.playing=false; updateNP();
+        showPlayerMsg("YouTube nolak muter video ini di embed (kode "+code+") — biasanya video dibatasi pemiliknya atau webview ngeblok embed. Nyoba mode embed cadangan…",true);
+        setTimeout(function(){ enterEmbedMode("Kode error YouTube: "+code+"."); },700);
+      }
+    }
+  });
+}
+window.onYouTubeIframeAPIReady=function(){ if(state.mode==="api"&&!player) createPlayer(); };
+
+/* seek ticker */
+setInterval(function(){
+  if(!player||!state.ready||!player.getCurrentTime) return;
+  var d=player.getDuration?player.getDuration():0, c=player.getCurrentTime()||0;
+  document.getElementById("tCur").textContent=fmt(c);
+  document.getElementById("tDur").textContent=d?fmt(d):"LIVE";
+  if(!state.seeking&&d>0){ var s=document.getElementById("seek"); s.value=(c/d*100); s.style.setProperty("--fill",(c/d*100)+"%"); }
+},500);
+
+/* ---------- controls ---------- */
+document.getElementById("btnPlay").addEventListener("click",togglePlay);
+document.getElementById("dockPlay").addEventListener("click",togglePlay);
+document.getElementById("btnNext").addEventListener("click",function(){nextTrack(false)});
+document.getElementById("dockNext").addEventListener("click",function(){nextTrack(false)});
+document.getElementById("btnPrev").addEventListener("click",prevTrack);
+document.getElementById("dockPrev").addEventListener("click",prevTrack);
+document.getElementById("btnShuffle").addEventListener("click",function(){ state.shuffle=!state.shuffle; this.classList.toggle("active",state.shuffle); toast(state.shuffle?"Mode acak: ON":"Mode acak: OFF"); });
+document.getElementById("btnRepeat").addEventListener("click",function(){ state.repeat=!state.repeat; this.classList.toggle("active",state.repeat); toast(state.repeat?"Ulangi lagu ini: ON":"Ulangi: OFF"); });
+document.getElementById("btnLike").addEventListener("click",function(){ var t=cur(); state.liked[t.id]=!state.liked[t.id]; updateNP(); toast(state.liked[t.id]?"Ditambah ke lagu disukai ♥":"Dihapus dari lagu disukai"); });
+document.getElementById("btnQueue").addEventListener("click",function(){ var n=(state.idx+1)%TRACKS.length; state.queue.push(n); renderQueue(); toast("“"+TRACKS[n].title+"” masuk antrean berikutnya"); });
+var seekEl=document.getElementById("seek");
+seekEl.addEventListener("input",function(){ state.seeking=true; seekEl.style.setProperty("--fill",seekEl.value+"%"); });
+seekEl.addEventListener("change",function(){ if(player&&state.ready){ var d=player.getDuration()||0; if(d>0) player.seekTo(d*seekEl.value/100,true); } state.seeking=false; });
+var volEl=document.getElementById("vol");
+volEl.addEventListener("input",function(){ document.getElementById("volVal").textContent=volEl.value; volEl.style.setProperty("--fill",volEl.value+"%"); if(player&&state.ready) player.setVolume(+volEl.value); });
+volEl.style.setProperty("--fill","80%");
+
+document.getElementById("btnRetryPlayer").addEventListener("click",function(){
+  hidePlayerMsg();
+  if(state.mode==="embed"){ loadEmbed(cur(),true); updateNP(); toast("Nyoba lagi di mode embed cadangan…"); return; }
+  if(player&&state.ready){ player.loadVideoById(cur().id); state.playing=true; updateNP(); return; }
+  apiAttempts=0; loadYouTubeAPI(); toast("Muat ulang player YouTube…");
+});
+
+/* media session handlers (lock screen / notification controls) */
+if("mediaSession" in navigator){
+  try{
+    navigator.mediaSession.setActionHandler("play",function(){ if(state.mode==="embed"){ embedCmd("playVideo"); state.playing=true; updateNP(); } else if(player&&state.ready) player.playVideo(); });
+    navigator.mediaSession.setActionHandler("pause",function(){ if(state.mode==="embed"){ embedCmd("pauseVideo"); state.playing=false; updateNP(); } else if(player&&state.ready) player.pauseVideo(); });
+    navigator.mediaSession.setActionHandler("previoustrack",prevTrack);
+    navigator.mediaSession.setActionHandler("nexttrack",function(){ nextTrack(false); });
+  }catch(e){}
+}
+
+/* background mode */
+var bgOn=false;
+document.getElementById("bgSwitch").addEventListener("click",function(){
+  bgOn=!bgOn; this.setAttribute("aria-checked",bgOn);
+  document.body.classList.toggle("bg-on",bgOn);
+  document.getElementById("bgStatus").classList.toggle("on",bgOn);
+  if(bgOn){
+    toast("Mode latar aktif — video jadi jendela mini, audio tetap jalan pas pindah aplikasi.");
+    if(!state.playing){ if(state.mode==="embed"){ embedCmd("playVideo"); state.playing=true; updateNP(); } else if(player&&state.ready) player.playVideo(); }
+    if("wakeLock" in navigator){ navigator.wakeLock.request("screen").catch(function(){}); }
+  } else { toast("Mode latar mati — video balik ke ukuran normal."); }
+});
+
+/* search / paste link */
+function extractId(str){
+  var m=str.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if(m) return m[1];
+  if(/^[A-Za-z0-9_-]{11}$/.test(str.trim())) return str.trim();
+  return null;
+}
+document.getElementById("searchForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  var v=document.getElementById("searchInput").value;
+  var id=extractId(v);
+  if(id){
+    var existing=TRACKS.findIndex(function(t){return t.id===id});
+    if(existing>-1){ playTrack(existing,true); toast("Memutar dari link YouTube kamu ▶"); }
+    else{
+      TRACKS.unshift({id:id,title:"Lagu dari link kamu",artist:"YouTube • link tempelan",genre:"Pop",heat:99,chg:"+BARU"});
+      var img=new Image(); img.onload=function(){};
+      playTrack(0,true); toast("Link diterima — memutar lagu dari YouTube kamu ▶");
+    }
+    state.query=""; document.getElementById("searchInput").value=""; renderList(); return;
+  }
+  state.query=v; renderList();
+  var vis=visibleTracks();
+  if(vis.length===1) playTrack(vis[0].i,true);
+  else if(!vis.length) toast("Nggak ketemu di katalog — paste link YouTube-nya aja, langsung diputar.");
+});
+document.getElementById("searchInput").addEventListener("input",function(){ if(!extractId(this.value)){ state.query=this.value; renderList(); } });
+
+/* clock */
+function tickClock(){ var d=new Date(); document.getElementById("clock").textContent=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+" WIB"; }
+tickClock(); setInterval(tickClock,20000);
+
+renderHeat(); renderChips(); renderList(); renderQueue(); updateNP();
+loadYouTubeAPI();
+</script>
+</body>
+</html>
